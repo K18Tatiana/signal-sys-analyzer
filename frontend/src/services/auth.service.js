@@ -31,15 +31,28 @@ apiClient.interceptors.request.use(
 export const authService = {
   /**
    * Registra a un nuevo usuario
-   * @param {Object} userData - Datos del usuario (nombre, email, contraseña)
+   * @param {Object} userData - Datos del usuario (username, email, contraseña)
    * @returns {Promise} - Promesa con la respuesta del servidor
    */
   register: async userData => {
     try {
-      const response = await apiClient.post('/register', userData);
+      // Adaptamos el campo name a username que espera el servidor
+      const requestData = {
+        username: userData.name,
+        email: userData.email,
+        password: userData.password,
+      };
+
+      const response = await apiClient.post('/register', requestData);
+
+      // Si el registro es exitoso y el backend devuelve un token, lo guardamos
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+
       return response.data;
     } catch (error) {
-      // Convertir error de red o del servidor a un formato más amigable
       throw handleError(error);
     }
   },
@@ -103,19 +116,25 @@ function handleError (error) {
     // El servidor respondió con un código de estado fuera del rango 2xx
     if (error.response.data && error.response.data.message) {
       errorMessage = error.response.data.message;
+    } else if (error.response.data && typeof error.response.data === 'string') {
+      // Si el servidor devuelve un string directo (como "Email o contraseña incorrectos")
+      errorMessage = error.response.data;
     } else {
       switch (error.response.status) {
         case 400:
           errorMessage = 'Solicitud incorrecta';
           break;
         case 401:
-          errorMessage = 'No autorizado';
+          errorMessage = 'Email o contraseña incorrectos';
           break;
         case 403:
           errorMessage = 'Acceso prohibido';
           break;
         case 404:
           errorMessage = 'Recurso no encontrado';
+          break;
+        case 409:
+          errorMessage = 'El correo electrónico ya está registrado';
           break;
         case 500:
           errorMessage = 'Error interno del servidor';
