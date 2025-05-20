@@ -6,7 +6,7 @@ const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:8081/api';
 // Crea una instancia personalizada de axios
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -64,7 +64,12 @@ export const authService = {
    */
   login: async credentials => {
     try {
+
+      console.log('Intentando iniciar sesión con:', credentials);
+      console.log('URL completa:', `${API_URL}/login`);
+
       const response = await apiClient.post('/login', credentials);
+      console.log('Respuesta exitosa:', response.data);
 
       // Si la autenticación es exitosa, guarda el token en localStorage
       if (response.data.token) {
@@ -74,6 +79,14 @@ export const authService = {
 
       return response.data;
     } catch (error) {
+      console.error('Error completo:', error);
+
+      if (error.response) {
+        console.error('Respuesta de error:', error.response.data);
+      } else if (error.request) {
+        console.error('Objeto request:', error.request);
+      }
+
       throw handleError(error);
     }
   },
