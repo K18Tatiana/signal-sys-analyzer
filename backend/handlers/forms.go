@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
 	"backend/database"
 	"backend/middleware"
 	"backend/models"
+	"backend/utils"
 )
 
 // CreateContactFormHandler maneja la creación de un formulario de contacto
@@ -48,6 +50,15 @@ func CreateContactFormHandler() http.HandlerFunc {
 			http.Error(w, "Error al guardar el formulario: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		// Enviar notificación por correo (en segundo plano)
+		go func() {
+			if err := utils.SendContactFormNotification(req.Name, req.Email, req.Subject, req.Message); err != nil {
+				log.Printf("Error al enviar notificación por correo: %v", err)
+			} else {
+				log.Printf("Notificación de contacto enviada correctamente para %s", req.Email)
+			}
+		}()
 
 		// Preparar respuesta
 		response := struct {
@@ -106,6 +117,15 @@ func CreateFeedbackFormHandler() http.HandlerFunc {
 			http.Error(w, "Error al guardar el feedback: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		// Enviar notificación por correo (en segundo plano)
+		go func() {
+			if err := utils.SendFeedbackNotification(req.Rating, req.Feedback, req.Email); err != nil {
+				log.Printf("Error al enviar notificación de feedback por correo: %v", err)
+			} else {
+				log.Printf("Notificación de feedback enviada correctamente")
+			}
+		}()
 
 		// Preparar respuesta
 		response := struct {
