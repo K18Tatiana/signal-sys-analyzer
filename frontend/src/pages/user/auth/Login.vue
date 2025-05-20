@@ -7,6 +7,12 @@
           <p class="login-subtitle">Accede a tu cuenta para gestionar tus análisis</p>
         </div>
 
+        <!-- Alerta de registro exitoso -->
+        <div v-if="registeredSuccessfully" class="alert alert-success">
+          <i class="bx bx-check-circle alert-icon"></i>
+          <span>Registro exitoso. Ya puedes iniciar sesión con tus credenciales.</span>
+        </div>
+
         <!-- Alerta de error -->
         <div v-if="errorMessage" class="alert alert-error">
           <i class="bx bx-error-circle alert-icon"></i>
@@ -87,11 +93,12 @@
 </template>
 
 <script setup>
-  import { ref, reactive } from 'vue';
-  import { useRouter } from 'vue-router';
+  import { ref, reactive, onMounted } from 'vue';
+  import { useRouter, useRoute } from 'vue-router';
   import authService from '@/services/auth.service';
 
   const router = useRouter();
+  const route = useRoute();
 
   // Estado del formulario
   const formData = reactive({
@@ -108,6 +115,14 @@
   const isLoading = ref(false);
   const showPassword = ref(false);
   const errorMessage = ref('');
+  const registeredSuccessfully = ref(false);
+
+  // Verificar si el usuario viene de un registro exitoso
+  onMounted(() => {
+    if (route.query.registered === 'true') {
+      registeredSuccessfully.value = true;
+    }
+  });
 
   // Método para manejar el inicio de sesión
   const handleLogin = async () => {
@@ -115,6 +130,7 @@
     errors.email = '';
     errors.password = '';
     errorMessage.value = '';
+    registeredSuccessfully.value = false;
 
     // Validación básica
     let isValid = true;
@@ -151,8 +167,9 @@
         localStorage.removeItem('remember_me');
       }
 
-      // Redireccionar al dashboard o página principal
-      router.push('/dashboard');
+      // Redireccionar usando el parámetro redirect si existe, o al dashboard por defecto
+      const redirectPath = route.query.redirect || '/dashboard';
+      router.push(redirectPath);
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
       // Mostrar mensaje de error
@@ -232,7 +249,7 @@
   }
 }
 
-// Alerta de error
+// Alertas
 .alert {
   margin-bottom: 1.5rem;
   padding: 1rem;
@@ -244,6 +261,12 @@
     background-color: rgba(#e74c3c, 0.1);
     border-left: 4px solid #e74c3c;
     color: #e74c3c;
+  }
+
+  &.alert-success {
+    background-color: rgba(#2ecc71, 0.1);
+    border-left: 4px solid #2ecc71;
+    color: #2ecc71;
   }
 
   .alert-icon {

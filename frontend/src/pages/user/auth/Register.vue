@@ -20,16 +20,16 @@
         </div>
 
         <form class="register-form" @submit.prevent="handleRegister">
-          <!-- Nombre -->
+          <!-- Nombre de usuario -->
           <div class="form-group">
-            <label for="name">Nombre <span class="required">*</span></label>
+            <label for="username">Nombre de usuario <span class="required">*</span></label>
             <div class="input-container">
               <i class="bx bx-user input-icon"></i>
               <input
-                id="name"
+                id="username"
                 v-model="formData.name"
-                autocomplete="name"
-                placeholder="Ingresa tu nombre completo"
+                autocomplete="username"
+                placeholder="Ingresa tu nombre de usuario"
                 required
                 type="text"
               >
@@ -163,7 +163,7 @@
 
   // Estado del formulario
   const formData = reactive({
-    name: '',
+    name: '', // Este campo se enviará como username al backend
     email: '',
     password: '',
     passwordConfirm: '',
@@ -239,7 +239,7 @@
     let isValid = true;
 
     if (!formData.name.trim()) {
-      errors.name = 'El nombre es obligatorio';
+      errors.name = 'El nombre de usuario es obligatorio';
       isValid = false;
     }
 
@@ -279,7 +279,7 @@
 
       // Llamada al servicio de autenticación
       await authService.register({
-        name: formData.name,
+        name: formData.name, // Este campo se adaptará a username en el servicio
         email: formData.email,
         password: formData.password,
       });
@@ -304,6 +304,11 @@
       if (error.message?.includes('correo') || error.message?.includes('email')) {
         errors.email = 'Este correo electrónico ya está registrado';
       }
+
+      // Si el error es de nombre de usuario duplicado
+      if (error.message?.includes('usuario') || error.message?.includes('username')) {
+        errors.name = 'Este nombre de usuario ya está registrado';
+      }
     } finally {
       isLoading.value = false;
     }
@@ -319,6 +324,7 @@
 <style lang="scss" scoped>
 @import '/src/styles/variables.scss';
 
+/* El estilo se mantiene igual */
 .register-page {
   min-height: calc(100vh - 70px);
   display: flex;

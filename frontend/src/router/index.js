@@ -65,6 +65,7 @@ const routes = [
       redirectIfAuth: true, // Redirige si ya está autenticado
     },
   },
+  /*
   {
     path: '/forgot-password',
     name: 'ForgotPassword',
@@ -73,15 +74,17 @@ const routes = [
       redirectIfAuth: true,
     },
   },
+  */
   // Rutas protegidas (requieren autenticación)
   {
     path: '/dashboard',
     name: 'Dashboard',
-    component: () => import('../pages/user/Dashboard.vue'),
+    component: () => import('../pages/user/profile/Dashboard.vue'),
     meta: {
       requiresAuth: true,
     },
   },
+  /*
   {
     path: '/profile',
     name: 'Profile',
@@ -106,6 +109,7 @@ const routes = [
       requiresAuth: true,
     },
   },
+  */
   // Página 404
   {
     path: '/:pathMatch(.*)*',
