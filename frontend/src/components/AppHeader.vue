@@ -30,10 +30,14 @@
         </router-link>
         <ThemeToggle />
         <button class="btn btn-secondary">
-          <i class='icon bx bx-user'></i> Iniciar sesión
+          <router-link to="/login">
+            <i class='icon bx bx-user'></i> Iniciar sesión
+          </router-link>
         </button>
         <button class="btn btn-primary">
-          <i class='icon bx bx-user'></i> Registrarse
+          <router-link to="/register">
+            <i class='icon bx bx-user'></i> Registrarse
+          </router-link>
         </button>
       </div>
     </nav>
@@ -216,11 +220,17 @@
 
         &.btn-primary {
           background-color: $primary-color-light-mode;
-          color: white;
+
+          a {
+            color: white !important;
+
+            .dark-mode & {
+              color: #000 !important;
+            }
+          }
 
           .dark-mode & {
             background-color: $primary-color-dark-mode;
-            color: #000;
           }
         }
 
