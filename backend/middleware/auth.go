@@ -1,86 +1,88 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
 	"backend/utils"
+	"github.com/gin-gonic/gin"
 )
 
-// Clave para el contexto
-type contextKey string
-
-const UserIDKey contextKey = "userID"
-
-// AuthMiddleware verifica que el usuario esté autenticado
-func AuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// AuthMiddleware verifica que el usuario esté autenticado (obligatorio)
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		// Obtener token del header Authorization
-		authHeader := r.Header.Get("Authorization")
+		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			http.Error(w, "Autorización requerida", http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Autorización requerida"})
+			c.Abort()
 			return
 		}
 
 		// El token debe estar en formato "Bearer <token>"
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			http.Error(w, "Formato de autorización inválido", http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Formato de autorización inválido"})
+			c.Abort()
 			return
 		}
 
 		// Validar el token
 		claims, err := utils.ValidateToken(parts[1])
 		if err != nil {
-			http.Error(w, "Token inválido", http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido"})
+			c.Abort()
 			return
 		}
 
-		// Añadir userID al contexto
-		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+		// Guardar userID en el contexto de Gin
+		c.Set("userID", claims.UserID)
 
 		// Continuar con el siguiente handler
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-// GetUserID extrae el ID de usuario del contexto
-func GetUserID(r *http.Request) (uint, bool) {
-	userID, ok := r.Context().Value(UserIDKey).(uint)
-	return userID, ok
+		c.Next()
+	}
 }
 
 // OptionalAuthMiddleware intenta autenticar al usuario, pero no falla si no hay token
-func OptionalAuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func OptionalAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		// Obtener token del header Authorization
-		authHeader := r.Header.Get("Authorization")
+		authHeader := c.GetHeader("Authorization")
 
 		// Si no hay token, simplemente continuar
 		if authHeader == "" {
-			next.ServeHTTP(w, r)
+			c.Next()
 			return
 		}
 
 		// El token debe estar en formato "Bearer <token>"
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			next.ServeHTTP(w, r)
+			c.Next()
 			return
 		}
 
 		// Intentar validar el token
 		claims, err := utils.ValidateToken(parts[1])
 		if err != nil {
-			next.ServeHTTP(w, r)
+			c.Next()
 			return
 		}
 
-		// Añadir userID al contexto
-		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+		// Guardar userID en el contexto de Gin
+		c.Set("userID", claims.UserID)
 
 		// Continuar con el siguiente handler
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+		c.Next()
+	}
+}
+
+// GetUserIDFromGin extrae el ID de usuario del contexto de Gin
+func GetUserIDFromGin(c *gin.Context) (uint, bool) {
+	if userID, exists := c.Get("userID"); exists {
+		if id, ok := userID.(uint); ok {
+			return id, true
+		}
+	}
+	return 0, false
 }

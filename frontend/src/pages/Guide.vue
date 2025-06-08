@@ -77,7 +77,7 @@ Waveform Data,
               Después del procesamiento, se mostrará:
             </p>
             <ul>
-              <li>El tipo de sistema detectado (subamortiguado, sobreamortiguado, críticamente amortiguado) junto con una breve explicación.</li>
+              <li>El tipo de sistema detectado (subamortiguado, sobreamortiguado) junto con una breve explicación.</li>
               <li>Los polos del sistema, según la función de transferencia estimada.</li>
               <li>Una gráfica representativa del comportamiento del sistema.</li>
             </ul>

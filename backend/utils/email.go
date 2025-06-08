@@ -79,7 +79,7 @@ func SendContactFormNotification(name, email, subject, message string) error {
 	// Email del administrador al que se enviará la notificación
 	adminEmail := os.Getenv("ADMIN_EMAIL")
 	if adminEmail == "" {
-		adminEmail = "tvega@unillanos.edu.co" // Cambiar a tu correo real
+		adminEmail = "tvegac2003@gmail.com" // Cambiar a tu correo real
 	}
 
 	// Crear cuerpo del correo
@@ -113,7 +113,7 @@ func SendFeedbackNotification(rating int, feedback, email string) error {
 	// Email del administrador al que se enviará la notificación
 	adminEmail := os.Getenv("ADMIN_EMAIL")
 	if adminEmail == "" {
-		adminEmail = "tvega@unillanos.edu.co" // Cambiar a tu correo real
+		adminEmail = "tvegac2003@gmail.com" // Cambiar a tu correo real
 	}
 
 	// Crear representación visual del rating

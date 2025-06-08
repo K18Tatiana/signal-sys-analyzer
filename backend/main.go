@@ -2,11 +2,10 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"os"
-	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
 	"backend/database"
@@ -15,7 +14,6 @@ import (
 )
 
 func main() {
-	// Cargar variables de entorno desde el archivo .env si existe
 	godotenv.Load()
 
 	// Inicializar la conexión a la base de datos
@@ -23,70 +21,84 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error al inicializar la base de datos: %v", err)
 	}
-	// No es necesario cerrar la conexión explícitamente con GORM
 
-	// Crear router
-	router := mux.NewRouter()
+	// Configurar Gin para producción si es necesario
+	if os.Getenv("ENV") == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
-	// Middleware global para todos los endpoints
-	router.Use(middleware.LoggingMiddleware)
+	router := gin.Default()
+
+	// Configurar CORS middleware
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
+
+	router.Use(middleware.LoggingMiddleware())
 
 	// API endpoints
-	api := router.PathPrefix("/api").Subrouter()
+	api := router.Group("/api")
 
 	// Rutas públicas (no requieren autenticación)
-	api.HandleFunc("/register", handlers.RegisterHandler()).Methods("POST")
-	api.HandleFunc("/login", handlers.LoginHandler()).Methods("POST")
+	api.POST("/register", handlers.RegisterHandler())
+	api.POST("/login", handlers.LoginHandler())
 
 	// Rutas para formularios (autenticación opcional)
-	formsRouter := api.PathPrefix("/forms").Subrouter()
-	formsRouter.Use(middleware.OptionalAuthMiddleware)
-	formsRouter.HandleFunc("/contact", handlers.CreateContactFormHandler()).Methods("POST")
-	formsRouter.HandleFunc("/feedback", handlers.CreateFeedbackFormHandler()).Methods("POST")
+	forms := api.Group("/forms")
+	forms.Use(middleware.OptionalAuthMiddleware())
+	{
+		forms.POST("/contact", handlers.CreateContactFormHandler())
+		forms.POST("/feedback", handlers.CreateFeedbackFormHandler())
+	}
 
 	// Rutas para documentos (subida disponible para todos, autenticación opcional)
-	documentsRouter := api.PathPrefix("/documents").Subrouter()
-	documentsRouter.Use(middleware.OptionalAuthMiddleware)
-	documentsRouter.HandleFunc("", handlers.UploadDocumentHandler()).Methods("POST")
+	documents := api.Group("/documents")
+	documents.Use(middleware.OptionalAuthMiddleware())
+	{
+		documents.POST("", handlers.UploadDocumentHandler())
+	}
 
 	// Rutas para análisis (disponible para todos, autenticación opcional)
-	analysisRouter := api.PathPrefix("/analysis").Subrouter()
-	analysisRouter.Use(middleware.OptionalAuthMiddleware)
-	analysisRouter.HandleFunc("", handlers.CreateAnalysisRequestHandler()).Methods("POST")
-	analysisRouter.HandleFunc("/{id:[0-9]+}", handlers.GetAnalysisResultHandler()).Methods("GET")
+	analysis := api.Group("/analysis")
+	analysis.Use(middleware.OptionalAuthMiddleware())
+	{
+		analysis.POST("", handlers.CreateAnalysisRequestHandler())
+		analysis.GET("/:id", handlers.GetAnalysisResultHandler())
+	}
 
 	// Rutas protegidas (requieren autenticación)
-	protectedRouter := api.PathPrefix("").Subrouter()
-	protectedRouter.Use(middleware.AuthMiddleware)
+	protected := api.Group("")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		// Perfil de usuario
+		protected.GET("/profile", handlers.GetProfileHandler())
+		protected.PUT("/user/update", handlers.UpdateUserHandler())
+		protected.DELETE("/user/delete", handlers.DeleteUserHandler())
 
-	// Perfil de usuario
-	protectedRouter.HandleFunc("/profile", handlers.GetProfileHandler()).Methods("GET")
-	protectedRouter.HandleFunc("/user/update", handlers.UpdateUserHandler()).Methods("PUT")
-	protectedRouter.HandleFunc("/user/delete", handlers.DeleteUserHandler()).Methods("DELETE")
+		// Dashboard y estadísticas
+		protected.GET("/user/stats", handlers.GetUserStatsHandler())
+		protected.GET("/user/recent-activity", handlers.GetUserRecentActivityHandler())
+		protected.GET("/user/recent-documents", handlers.GetUserRecentDocumentsHandler())
 
-	// Documentos del usuario
-	protectedRouter.HandleFunc("/user/documents", handlers.GetUserDocumentsHandler()).Methods("GET")
-	protectedRouter.HandleFunc("/user/documents/{id:[0-9]+}", handlers.DeleteDocumentHandler()).Methods("DELETE")
-	// Ruta para eliminación permanente
-	protectedRouter.HandleFunc("/user/documents/{id:[0-9]+}/permanent", handlers.PermanentDeleteDocumentHandler()).Methods("DELETE")
+		// Documentos del usuario
+		protected.GET("/user/documents", handlers.GetUserDocumentsHandler())
+		protected.GET("/user/documents/:id", handlers.GetDocumentWithAnalysisHandler())
+		protected.DELETE("/user/documents/:id", handlers.DeleteDocumentHandler())
+		protected.DELETE("/user/documents/:id/permanent", handlers.PermanentDeleteDocumentHandler())
 
-	// Análisis del usuario
-	protectedRouter.HandleFunc("/user/analysis", handlers.GetUserAnalysisRequestsHandler()).Methods("GET")
+		// Análisis del usuario
+		protected.GET("/user/analysis", handlers.GetUserAnalysisRequestsHandler())
+	}
 
-	// Configurar y iniciar el servidor
+	// Configurar puerto
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8081"
 	}
 
-	srv := &http.Server{
-		Handler:      router,
-		Addr:         "0.0.0.0:" + port,
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	log.Printf("Servidor iniciado en el puerto %s\n", port)
-	log.Fatal(srv.ListenAndServe())
+	log.Printf("Servidor Gin iniciado en el puerto %s\n", port)
+	log.Fatal(router.Run(":" + port))
 }

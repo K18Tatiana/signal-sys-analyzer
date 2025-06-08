@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -9,21 +8,22 @@ import (
 	"backend/middleware"
 	"backend/models"
 	"backend/utils"
+	"github.com/gin-gonic/gin"
 )
 
-// RegisterHandler maneja el registro de nuevos usuarios
-func RegisterHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Decodificar el cuerpo de la solicitud
+func RegisterHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		var req models.UserRegisterRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Error al decodificar la solicitud", http.StatusBadRequest)
+
+		// Bind JSON del cuerpo de la solicitud
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error al decodificar la solicitud"})
 			return
 		}
 
 		// Validar campos requeridos
 		if req.Username == "" || req.Email == "" || req.Password == "" {
-			http.Error(w, "Todos los campos son requeridos", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Todos los campos son requeridos"})
 			return
 		}
 
@@ -31,14 +31,14 @@ func RegisterHandler() http.HandlerFunc {
 		var existingUser models.User
 		result := database.DB.Where("email = ?", req.Email).First(&existingUser)
 		if result.RowsAffected > 0 {
-			http.Error(w, "El correo ya está registrado", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "El correo ya está registrado"})
 			return
 		}
 
 		// Generar hash de la contraseña
 		hashedPassword, err := utils.HashPassword(req.Password)
 		if err != nil {
-			http.Error(w, "Error al procesar la contraseña", http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
 			return
 		}
 
@@ -54,14 +54,14 @@ func RegisterHandler() http.HandlerFunc {
 
 		result = database.DB.Create(&user)
 		if result.Error != nil {
-			http.Error(w, "Error al crear el usuario: "+result.Error.Error(), http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear el usuario: " + result.Error.Error()})
 			return
 		}
 
 		// Generar token JWT
 		token, err := utils.GenerateToken(user.ID)
 		if err != nil {
-			http.Error(w, "Error al generar el token", http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al generar el token"})
 			return
 		}
 
@@ -77,25 +77,23 @@ func RegisterHandler() http.HandlerFunc {
 		}
 
 		// Enviar respuesta
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(response)
+		c.JSON(http.StatusCreated, response)
 	}
 }
 
-// LoginHandler maneja el inicio de sesión de usuarios
-func LoginHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Decodificar el cuerpo de la solicitud
+func LoginHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		var req models.UserLoginRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Error al decodificar la solicitud", http.StatusBadRequest)
+
+		// Bind JSON del cuerpo de la solicitud
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error al decodificar la solicitud"})
 			return
 		}
 
 		// Validar campos requeridos
 		if req.Email == "" || req.Password == "" {
-			http.Error(w, "Email y contraseña son requeridos", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Email y contraseña son requeridos"})
 			return
 		}
 
@@ -103,20 +101,20 @@ func LoginHandler() http.HandlerFunc {
 		var user models.User
 		result := database.DB.Where("email = ?", req.Email).First(&user)
 		if result.Error != nil {
-			http.Error(w, "Email o contraseña incorrectos", http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Email o contraseña incorrectos"})
 			return
 		}
 
 		// Verificar contraseña
 		if !utils.CheckPasswordHash(req.Password, user.PasswordHash) {
-			http.Error(w, "Email o contraseña incorrectos", http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Email o contraseña incorrectos"})
 			return
 		}
 
 		// Generar token JWT
 		token, err := utils.GenerateToken(user.ID)
 		if err != nil {
-			http.Error(w, "Error al generar el token", http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al generar el token"})
 			return
 		}
 
@@ -127,18 +125,16 @@ func LoginHandler() http.HandlerFunc {
 		}
 
 		// Enviar respuesta
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		c.JSON(http.StatusOK, response)
 	}
 }
 
-// GetProfileHandler obtiene el perfil del usuario actual
-func GetProfileHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Obtener ID del usuario del contexto (establecido por AuthMiddleware)
-		userID, ok := middleware.GetUserID(r)
+func GetProfileHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Obtener ID del usuario del contexto de Gin
+		userID, ok := middleware.GetUserIDFromGin(c)
 		if !ok {
-			http.Error(w, "Usuario no autenticado", http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no autenticado"})
 			return
 		}
 
@@ -146,23 +142,21 @@ func GetProfileHandler() http.HandlerFunc {
 		var user models.User
 		result := database.DB.First(&user, userID)
 		if result.Error != nil {
-			http.Error(w, "Usuario no encontrado", http.StatusNotFound)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
 			return
 		}
 
 		// Enviar respuesta
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(user.ToUserResponse())
+		c.JSON(http.StatusOK, user.ToUserResponse())
 	}
 }
 
-// UpdateUserHandler maneja la actualización de datos de usuario
-func UpdateUserHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Obtener ID del usuario del contexto (debe estar autenticado)
-		userID, ok := middleware.GetUserID(r)
+func UpdateUserHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Obtener ID del usuario del contexto de Gin
+		userID, ok := middleware.GetUserIDFromGin(c)
 		if !ok {
-			http.Error(w, "Usuario no autenticado", http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no autenticado"})
 			return
 		}
 
@@ -174,47 +168,47 @@ func UpdateUserHandler() http.HandlerFunc {
 			OldPassword string `json:"old_password,omitempty"` // Requerido para cambiar contraseña
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Error al decodificar solicitud", http.StatusBadRequest)
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error al decodificar solicitud"})
 			return
 		}
 
 		// Verificar si se proporciona suficiente información
 		if req.Username == "" && req.Email == "" && req.NewPassword == "" {
-			http.Error(w, "No se proporcionaron datos para actualizar", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No se proporcionaron datos para actualizar"})
 			return
 		}
 
 		// Buscar el usuario actual
 		var user models.User
 		if err := database.DB.First(&user, userID).Error; err != nil {
-			http.Error(w, "Error al encontrar usuario", http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al encontrar usuario"})
 			return
 		}
 
 		// Iniciar transacción
 		tx := database.DB.Begin()
 
-		// Si se quiere cambiar la contraseña, verificar la antigua
+		// SIEMPRE verificar contraseña actual para cualquier cambio
+		if req.OldPassword == "" {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Se requiere la contraseña actual para realizar cambios"})
+			return
+		}
+
+		// Verificar contraseña actual
+		if !utils.CheckPasswordHash(req.OldPassword, user.PasswordHash) {
+			tx.Rollback()
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Contraseña actual incorrecta"})
+			return
+		}
+
+		// Si se quiere cambiar la contraseña, generar nuevo hash
 		if req.NewPassword != "" {
-			if req.OldPassword == "" {
-				tx.Rollback()
-				http.Error(w, "Se requiere la contraseña actual para cambiarla", http.StatusBadRequest)
-				return
-			}
-
-			// Verificar contraseña actual
-			if !utils.CheckPasswordHash(req.OldPassword, user.PasswordHash) {
-				tx.Rollback()
-				http.Error(w, "Contraseña actual incorrecta", http.StatusUnauthorized)
-				return
-			}
-
-			// Generar nuevo hash
 			newHash, err := utils.HashPassword(req.NewPassword)
 			if err != nil {
 				tx.Rollback()
-				http.Error(w, "Error al procesar nueva contraseña", http.StatusInternalServerError)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar nueva contraseña"})
 				return
 			}
 
@@ -233,7 +227,7 @@ func UpdateUserHandler() http.HandlerFunc {
 			result := database.DB.Where("email = ? AND id != ?", req.Email, userID).First(&existingUser)
 			if result.RowsAffected > 0 {
 				tx.Rollback()
-				http.Error(w, "El email ya está en uso", http.StatusBadRequest)
+				c.JSON(http.StatusBadRequest, gin.H{"error": "El email ya está en uso"})
 				return
 			}
 
@@ -246,29 +240,27 @@ func UpdateUserHandler() http.HandlerFunc {
 		// Guardar cambios
 		if err := tx.Save(&user).Error; err != nil {
 			tx.Rollback()
-			http.Error(w, "Error al actualizar usuario: "+err.Error(), http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar usuario: " + err.Error()})
 			return
 		}
 
 		// Confirmar transacción
 		if err := tx.Commit().Error; err != nil {
-			http.Error(w, "Error al confirmar cambios", http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al confirmar cambios"})
 			return
 		}
 
 		// Enviar respuesta con datos actualizados
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(user.ToUserResponse())
+		c.JSON(http.StatusOK, user.ToUserResponse())
 	}
 }
 
-// DeleteUserHandler maneja la eliminación de la cuenta de usuario
-func DeleteUserHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Obtener ID del usuario del contexto
-		userID, ok := middleware.GetUserID(r)
+func DeleteUserHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Obtener ID del usuario del contexto de Gin
+		userID, ok := middleware.GetUserIDFromGin(c)
 		if !ok {
-			http.Error(w, "Usuario no autenticado", http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no autenticado"})
 			return
 		}
 
@@ -277,26 +269,26 @@ func DeleteUserHandler() http.HandlerFunc {
 			Password string `json:"password"` // Requerido para confirmar eliminación
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Error al decodificar solicitud", http.StatusBadRequest)
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error al decodificar solicitud"})
 			return
 		}
 
 		if req.Password == "" {
-			http.Error(w, "Se requiere contraseña para confirmar eliminación", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Se requiere contraseña para confirmar eliminación"})
 			return
 		}
 
 		// Buscar el usuario
 		var user models.User
 		if err := database.DB.First(&user, userID).Error; err != nil {
-			http.Error(w, "Error al encontrar usuario", http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al encontrar usuario"})
 			return
 		}
 
 		// Verificar contraseña
 		if !utils.CheckPasswordHash(req.Password, user.PasswordHash) {
-			http.Error(w, "Contraseña incorrecta", http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Contraseña incorrecta"})
 			return
 		}
 
@@ -306,17 +298,17 @@ func DeleteUserHandler() http.HandlerFunc {
 		// Eliminar usuario (esto también eliminará todos los registros relacionados gracias a las restricciones de FK)
 		if err := tx.Delete(&user).Error; err != nil {
 			tx.Rollback()
-			http.Error(w, "Error al eliminar usuario: "+err.Error(), http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar usuario: " + err.Error()})
 			return
 		}
 
 		// Confirmar transacción
 		if err := tx.Commit().Error; err != nil {
-			http.Error(w, "Error al confirmar eliminación", http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al confirmar eliminación"})
 			return
 		}
 
 		// Enviar respuesta
-		w.WriteHeader(http.StatusNoContent)
+		c.Status(http.StatusNoContent)
 	}
 }

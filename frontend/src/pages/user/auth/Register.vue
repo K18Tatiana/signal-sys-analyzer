@@ -7,20 +7,17 @@
           <p class="register-subtitle">Regístrate para analizar sistemas dinámicos</p>
         </div>
 
-        <!-- Alerta de error -->
         <div v-if="errorMessage" class="alert alert-error">
           <i class="bx bx-error-circle alert-icon"></i>
           <span>{{ errorMessage }}</span>
         </div>
 
-        <!-- Alerta de éxito -->
         <div v-if="successMessage" class="alert alert-success">
           <i class="bx bx-check-circle alert-icon"></i>
           <span>{{ successMessage }}</span>
         </div>
 
         <form class="register-form" @submit.prevent="handleRegister">
-          <!-- Nombre de usuario -->
           <div class="form-group">
             <label for="username">Nombre de usuario <span class="required">*</span></label>
             <div class="input-container">
@@ -37,7 +34,6 @@
             <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
           </div>
 
-          <!-- Correo electrónico -->
           <div class="form-group">
             <label for="email">Correo electrónico <span class="required">*</span></label>
             <div class="input-container">
@@ -54,7 +50,6 @@
             <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
           </div>
 
-          <!-- Contraseña -->
           <div class="form-group">
             <label for="password">Contraseña <span class="required">*</span></label>
             <div class="input-container">
@@ -97,7 +92,6 @@
             </ul>
           </div>
 
-          <!-- Confirmar contraseña -->
           <div class="form-group">
             <label for="passwordConfirm">Confirmar contraseña <span class="required">*</span></label>
             <div class="input-container">
@@ -122,7 +116,6 @@
             <span v-if="errors.passwordConfirm" class="error-message">{{ errors.passwordConfirm }}</span>
           </div>
 
-          <!-- Términos y condiciones -->
           <div class="form-group terms-group">
             <label class="checkbox-container">
               <input id="terms" v-model="formData.termsAccepted" required type="checkbox">
@@ -138,14 +131,12 @@
             <span v-if="errors.termsAccepted" class="error-message">{{ errors.termsAccepted }}</span>
           </div>
 
-          <!-- Botón de envío -->
           <button class="submit-button" :disabled="isLoading || !formData.termsAccepted" type="submit">
             <span v-if="isLoading" class="loading-spinner"></span>
             <span v-else>Registrarse</span>
           </button>
         </form>
 
-        <!-- Link a inicio de sesión -->
         <div class="auth-redirect">
           <p>¿Ya tienes una cuenta? <router-link to="/login">Inicia sesión</router-link></p>
         </div>
@@ -157,13 +148,13 @@
 <script setup>
   import { computed, reactive, ref, watch } from 'vue';
   import { useRouter } from 'vue-router';
-  import authService from '@/services/auth.service';
+  import { useAuth } from '@/stores/auth.js';
 
   const router = useRouter();
+  const { register } = useAuth();
 
-  // Estado del formulario
   const formData = reactive({
-    name: '', // Este campo se enviará como username al backend
+    name: '',
     email: '',
     password: '',
     passwordConfirm: '',
@@ -184,13 +175,11 @@
   const errorMessage = ref('');
   const successMessage = ref('');
 
-  // Validación de contraseña
   const hasMinLength = computed(() => formData.password.length >= 8);
   const hasLowercase = computed(() => /[a-z]/.test(formData.password));
   const hasUppercase = computed(() => /[A-Z]/.test(formData.password));
   const hasNumber = computed(() => /[0-9]/.test(formData.password));
 
-  // Calcula la fortaleza de la contraseña
   const passwordStrength = computed(() => {
     if (!formData.password) return { level: 'none', percentage: 0 };
 
@@ -211,7 +200,6 @@
     };
   });
 
-  // Texto de fortaleza de contraseña
   const passwordStrengthText = computed(() => {
     const strength = passwordStrength.value.level;
     switch (strength) {
@@ -223,19 +211,15 @@
     }
   });
 
-  // Limpiar errores cuando el usuario cambia los campos
   watch(formData, () => {
     Object.keys(errors).forEach(key => {
       errors[key] = '';
     });
-    // Limpiar mensajes globales cuando el usuario cambia datos
     errorMessage.value = '';
     successMessage.value = '';
   }, { deep: true });
 
-  // Método para manejar el registro
   const handleRegister = async () => {
-    // Validación
     let isValid = true;
 
     if (!formData.name.trim()) {
@@ -277,22 +261,18 @@
     try {
       isLoading.value = true;
 
-      // Llamada al servicio de autenticación
-      await authService.register({
-        name: formData.name, // Este campo se adaptará a username en el servicio
+      await register({
+        name: formData.name,
         email: formData.email,
         password: formData.password,
       });
 
-      // Si llegamos aquí, el registro fue exitoso
       successMessage.value = '¡Registro exitoso! Serás redirigido al inicio de sesión...';
 
-      // Limpiar formulario
       Object.keys(formData).forEach(key => {
         if (key !== 'termsAccepted') formData[key] = '';
       });
 
-      // Redireccionar después de un breve retraso
       setTimeout(() => {
         router.push('/login?registered=true');
       }, 2000);
@@ -300,12 +280,10 @@
       console.error('Error al registrar:', error);
       errorMessage.value = error.message || 'Error al crear la cuenta. Por favor, inténtalo de nuevo.';
 
-      // Si el error es de correo duplicado, marcarlo específicamente
       if (error.message?.includes('correo') || error.message?.includes('email')) {
         errors.email = 'Este correo electrónico ya está registrado';
       }
 
-      // Si el error es de nombre de usuario duplicado
       if (error.message?.includes('usuario') || error.message?.includes('username')) {
         errors.name = 'Este nombre de usuario ya está registrado';
       }
@@ -314,7 +292,6 @@
     }
   };
 
-  // Función para validar el formato del email
   const isValidEmail = email => {
     const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
@@ -324,7 +301,6 @@
 <style lang="scss" scoped>
 @import '/src/styles/variables.scss';
 
-/* El estilo se mantiene igual */
 .register-page {
   min-height: calc(100vh - 70px);
   display: flex;

@@ -139,6 +139,9 @@
 <script setup>
   import { reactive, ref } from 'vue';
 
+  // Configuración API
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const formData = reactive({
     name: '',
     email: '',
@@ -205,36 +208,6 @@
     return isValid;
   };
 
-  const submitForm = async () => {
-    if (!validateForm()) return;
-    isSubmitting.value = true;
-
-    try {
-      const response = await fetch('https://formspree.io/f/mzzrowdw', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          subject: formData.subject,
-          message: formData.message,
-        }),
-      });
-
-      if (response.ok) {
-        formSubmitted.value = true;
-      } else {
-        console.error('Error al enviar el formulario');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      isSubmitting.value = false;
-    }
-  };
-
   const resetForm = () => {
     Object.keys(formData).forEach(key => {
       if (typeof formData[key] === 'boolean') {
@@ -245,8 +218,56 @@
     });
 
     formSubmitted.value = false;
-
     Object.keys(errors).forEach(key => errors[key] = '');
+  };
+
+  const submitForm = async () => {
+    if (!validateForm()) return;
+
+    isSubmitting.value = true;
+
+    try {
+      const contactData = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        subject: formData.subject,
+        message: formData.message.trim(),
+      };
+
+      const response = await fetch(`${API_URL}/forms/contact`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(contactData),
+      });
+
+      if (response.ok) {
+        formSubmitted.value = true;
+      } else {
+        let errorMessage = 'Hubo un problema al enviar tu mensaje. Por favor, intenta nuevamente.';
+
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (err) {
+          throw new Error(`Error de conexión: ${err.message}`);
+        }
+        alert(errorMessage);
+      }
+    } catch (error) {
+
+      // Verificar si es un error de conexión
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        alert('No se pudo conectar con el servidor. Verifica que el backend esté funcionando.');
+      } else {
+        alert('Hubo un problema de conexión. Por favor, intenta nuevamente.');
+      }
+    } finally {
+      isSubmitting.value = false;
+    }
   };
 </script>
 

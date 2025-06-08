@@ -10,7 +10,7 @@
             <span class="toggle-icon">{{ isSystemTypeOpen ? '▼' : '▶' }}</span>
           </div>
           <div v-show="isSystemTypeOpen" class="collapsible-content">
-            <p class="system-name">{{ results.type }}</p>
+            <p class="system-name">Sistema {{ results.type }}</p>
             <p class="system-description">{{ results.description }}</p>
           </div>
         </div>
@@ -49,11 +49,11 @@
       </div>
     </div>
 
-    <div class="results-actions">
-      <button class="btn btn-primary" @click="downloadResults">
+    <div v-if="showActions" class="results-actions">
+      <button v-if="showDownload" class="btn btn-primary" @click="downloadResults">
         <i class="icon bx bx-download"></i> Descargar Resultados
       </button>
-      <button class="btn btn-secondary" @click="$emit('reset')">
+      <button v-if="showReset" class="btn btn-secondary" @click="$emit('reset')">
         <i class="icon bx bx-repost"></i> Nuevo Análisis
       </button>
     </div>
@@ -68,6 +68,18 @@
     results: {
       type: Object,
       default: null,
+    },
+    showActions: {
+      type: Boolean,
+      default: true,
+    },
+    showDownload: {
+      type: Boolean,
+      default: true,
+    },
+    showReset: {
+      type: Boolean,
+      default: true,
     },
   });
 

@@ -52,7 +52,7 @@
         <div class="actions-card dashboard-card">
           <h2 class="card-title">Acciones rápidas</h2>
           <div class="action-buttons">
-            <router-link class="action-button primary" to="/analysis/new">
+            <router-link class="action-button primary" to="/home">
               <i class="bx bx-plus"></i>
               <span>Nuevo análisis</span>
             </router-link>
@@ -93,10 +93,10 @@
           <div v-if="recentDocuments.length === 0" class="empty-state">
             <i class="bx bx-file empty-icon"></i>
             <p>No tienes documentos aún</p>
-            <button class="upload-button">
+            <router-link class="upload-button" to="/home">
               <i class="bx bx-upload"></i>
               <span>Subir documento</span>
-            </button>
+            </router-link>
           </div>
           <ul v-else class="document-list">
             <li v-for="(document, index) in recentDocuments" :key="index" class="document-item">
@@ -107,9 +107,9 @@
                 <p class="document-name">{{ document.name }}</p>
                 <p class="document-date">{{ formatDate(document.date) }}</p>
               </div>
-              <button class="document-action">
+              <router-link class="document-action" to="/user/documents">
                 <i class="bx bx-chevron-right"></i>
-              </button>
+              </router-link>
             </li>
           </ul>
         </div>
@@ -128,12 +128,15 @@
 <script setup>
   import { computed, onMounted, ref } from 'vue';
   import { useRouter } from 'vue-router';
-  import authService from '@/services/auth.service';
+  import { useAuth } from '@/stores/auth.js';
+
+  // Configuración api
+  const API_URL = import.meta.env.VITE_API_URL
 
   const router = useRouter();
-  const user = ref(null);
+  const { user, logout, isAuthenticated } = useAuth();
 
-  // Datos simulados para la vista
+  // Estados
   const stats = ref({
     documentsCount: 0,
     analysisCount: 0,
@@ -141,6 +144,97 @@
 
   const recentActivity = ref([]);
   const recentDocuments = ref([]);
+  const loading = ref(true);
+  const error = ref('');
+
+  // Función para obtener headers de autorización
+  const getAuthHeaders = () => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (isAuthenticated.value) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+    return headers;
+  };
+
+  // Cargar estadísticas del usuario
+  const loadUserStats = async () => {
+    try {
+      const response = await fetch(`${API_URL}/user/stats`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al cargar estadísticas');
+      }
+
+      const data = await response.json();
+      stats.value = {
+        documentsCount: data.documents_count,
+        analysisCount: data.analysis_count,
+      };
+    } catch (err) {
+      console.error('Error cargando estadísticas:', err);
+      error.value = 'Error al cargar estadísticas';
+    }
+  };
+
+  // Cargar actividad reciente
+  const loadRecentActivity = async () => {
+    try {
+      const response = await fetch(`${API_URL}/user/recent-activity`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al cargar actividad reciente');
+      }
+
+      const data = await response.json();
+      recentActivity.value = data;
+    } catch (err) {
+      console.error('Error cargando actividad:', err);
+    }
+  };
+
+  // Cargar documentos recientes
+  const loadRecentDocuments = async () => {
+    try {
+      const response = await fetch(`${API_URL}/user/recent-documents`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al cargar documentos recientes');
+      }
+
+      const data = await response.json();
+      recentDocuments.value = data;
+    } catch (err) {
+      console.error('Error cargando documentos:', err);
+    }
+  };
+
+  // Función principal para cargar datos del dashboard
+  const loadDashboardData = async () => {
+    loading.value = true;
+    try {
+      await Promise.all([
+        loadUserStats(),
+        loadRecentActivity(),
+        loadRecentDocuments(),
+      ]);
+    } catch (err) {
+      error.value = 'Error al cargar datos del dashboard: ' + err;
+    } finally {
+      loading.value = false;
+    }
+  };
 
   // Calcular iniciales del usuario para el avatar
   const userInitials = computed(() => {
@@ -149,40 +243,19 @@
   });
 
   onMounted(async () => {
-    // Obtener datos del usuario actual
-    user.value = authService.getCurrentUser();
-
-    if (!user.value) {
-      // Si no hay usuario, redirigir al login
+    // Verificar si hay usuario autenticado
+    if (!isAuthenticated.value) {
       router.push('/login');
       return;
     }
-    // Aquí se podrían cargar los datos reales del usuario desde el backend
-    // Ejemplo: llamar a un servicio para obtener estadísticas, actividad reciente, etc.
 
-    // Por ahora usamos datos simulados
-    // En una implementación real, estos datos vendrían del backend
-    loadDashboardData();
+    // Cargar datos del dashboard
+    await loadDashboardData();
   });
-
-  // Función para cargar datos del dashboard (simulada)
-  const loadDashboardData = () => {
-    // Simular carga de estadísticas
-    stats.value = {
-      documentsCount: 0,
-      analysisCount: 0,
-    };
-
-    // Simular carga de actividad reciente
-    recentActivity.value = [];
-
-    // Simular carga de documentos recientes
-    recentDocuments.value = [];
-  };
 
   // Función para cerrar sesión
   const handleLogout = () => {
-    authService.logout();
+    logout();
     router.push('/login');
   };
 
@@ -200,13 +273,20 @@
   const formatActivityDate = dateString => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      return 'Ayer';
+    } else if (diffDays < 7) {
+      return `Hace ${diffDays} días`;
+    } else {
+      return date.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+      });
+    }
   };
 
   // Función para determinar el icono según el tipo de actividad
@@ -526,6 +606,7 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    text-decoration: none;
 
     &:hover {
       background-color: rgba($primary-color-light-mode, 0.15);
@@ -676,6 +757,7 @@
     align-items: center;
     justify-content: center;
     transition: color 0.2s;
+    text-decoration: none;
 
     &:hover {
       color: $primary-color-light-mode;

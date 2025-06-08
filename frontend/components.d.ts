@@ -19,6 +19,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SystemChart: typeof import('./src/components/SystemChart.vue')['default']
+    TechnicalSummary: typeof import('./src/components/TechnicalSummary.vue')['default']
     ThemeToggle: typeof import('./src/components/ThemeToggle.vue')['default']
     UploadArea: typeof import('./src/components/UploadArea.vue')['default']
   }

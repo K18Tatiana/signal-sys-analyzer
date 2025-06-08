@@ -17,29 +17,38 @@
     <nav class="mobile-nav">
       <ul class="mobile-nav-list">
         <li class="mobile-nav-item">
-          <router-link to="/" @click="$emit('close')">
+          <router-link to="/home" @click="$emit('close')">
             <i class='icon bx bx-home-alt'></i> Inicio
           </router-link>
         </li>
         <li class="mobile-nav-item">
           <router-link to="/guide" @click="$emit('close')">
-            <i class='icon bx bx-book-open'></i>  Guía / Tutorial
-          </router-link>
-        </li>
-        <li class="mobile-nav-item">
-          <router-link to="/language" @click="$emit('close')">
-            <i class='icon bx bx-globe'></i>  Idioma
+            <i class='icon bx bx-book-open'></i> Guía / Tutorial
           </router-link>
         </li>
         <li class="mobile-nav-item">
           <button class="theme-toggle-mobile" @click="toggleTheme">
-            <i class="icon" :class="isDarkMode ? 'light-mode-icon bx  bx-sun' : 'dark-mode-icon bx  bx-moon'"></i>
+            <i class="icon" :class="isDarkMode ? 'light-mode-icon bx bx-sun' : 'dark-mode-icon bx bx-moon'"></i>
             {{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}
           </button>
         </li>
+
         <li class="mobile-nav-item">
-          <router-link class="login-link" to="/login" @click="$emit('close')">
-            <i class='icon bx bx-user'></i>  Iniciar sesión
+          <router-link
+            v-if="!isAuthenticated"
+            class="login-link"
+            to="/login"
+            @click="$emit('close')"
+          >
+            <i class='icon bx bx-user'></i> Iniciar sesión
+          </router-link>
+          <router-link
+            v-else
+            class="login-link"
+            to="/dashboard"
+            @click="$emit('close')"
+          >
+            <i class='icon bx bx-user-circle'></i> Mi perfil
           </router-link>
         </li>
       </ul>
@@ -52,6 +61,10 @@
 
   defineProps({
     isOpen: {
+      type: Boolean,
+      default: false,
+    },
+    isAuthenticated: {
       type: Boolean,
       default: false,
     },

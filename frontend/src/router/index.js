@@ -7,6 +7,7 @@ const routes = [
     path: '/',
     name: 'Home',
     component: Home,
+    alias: '/home',
   },
   {
     path: '/guide',
@@ -84,15 +85,6 @@ const routes = [
       requiresAuth: true,
     },
   },
-  /*
-  {
-    path: '/profile',
-    name: 'Profile',
-    component: () => import('../pages/user/profile/Profile.vue'),
-    meta: {
-      requiresAuth: true,
-    },
-  },
   {
     path: '/user/documents',
     name: 'UserDocuments',
@@ -101,6 +93,15 @@ const routes = [
       requiresAuth: true,
     },
   },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('../pages/user/profile/Profile.vue'),
+    meta: {
+      requiresAuth: true,
+    },
+  },
+  /*
   {
     path: '/user/analysis',
     name: 'UserAnalysis',

@@ -17,11 +17,11 @@ var DB *gorm.DB
 // InitDB inicializa la conexión a la base de datos
 func InitDB() (*gorm.DB, error) {
 	// Configuración de la conexión a PostgreSQL
-	host := getEnv("DB_HOST", "localhost")
-	port := getEnv("DB_PORT", "5432")
-	user := getEnv("DB_USER", "postgres")
-	password := getEnv("DB_PASSWORD", "sasoftco0212")
-	dbname := getEnv("DB_NAME", "signal_sys_analysis")
+	host := getEnv("DB_HOST", "")
+	port := getEnv("DB_PORT", "")
+	user := getEnv("DB_USER", "")
+	password := getEnv("DB_PASSWORD", "")
+	dbname := getEnv("DB_NAME", "")
 
 	// Cadena de conexión
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -70,14 +70,10 @@ func InitDB() (*gorm.DB, error) {
 	var tableCount int64
 	DB.Raw("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'").Scan(&tableCount)
 
-	if tableCount == 0 {
-		log.Println("ADVERTENCIA: No se encontraron tablas en la base de datos. Esto puede indicar un problema de conexión.")
-		return DB, nil
-	}
+	log.Printf("Encontradas %d tablas en la base de datos.", tableCount)
 
-	// Configurar GORM para trabajar con el esquema existente
 	if err := MigrateDatabase(DB); err != nil {
-		log.Printf("Advertencia: Problemas al configurar GORM para el esquema existente: %v", err)
+		log.Printf("Advertencia: Problemas al configurar GORM para el esquema: %v", err)
 		log.Println("Continuando a pesar de advertencias. Algunas funcionalidades podrían no operar correctamente.")
 	}
 

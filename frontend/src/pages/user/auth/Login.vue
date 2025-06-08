@@ -7,20 +7,17 @@
           <p class="login-subtitle">Accede a tu cuenta para gestionar tus análisis</p>
         </div>
 
-        <!-- Alerta de registro exitoso -->
         <div v-if="registeredSuccessfully" class="alert alert-success">
           <i class="bx bx-check-circle alert-icon"></i>
           <span>Registro exitoso. Ya puedes iniciar sesión con tus credenciales.</span>
         </div>
 
-        <!-- Alerta de error -->
         <div v-if="errorMessage" class="alert alert-error">
           <i class="bx bx-error-circle alert-icon"></i>
           <span>{{ errorMessage }}</span>
         </div>
 
         <form class="login-form" @submit.prevent="handleLogin">
-          <!-- Correo electrónico -->
           <div class="form-group">
             <label for="email">Correo electrónico <span class="required">*</span></label>
             <div class="input-container">
@@ -37,7 +34,6 @@
             <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
           </div>
 
-          <!-- Contraseña -->
           <div class="form-group">
             <div class="label-row">
               <label for="password">Contraseña <span class="required">*</span></label>
@@ -67,7 +63,6 @@
             <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
           </div>
 
-          <!-- Recordarme -->
           <div class="form-group remember-row">
             <label class="checkbox-container">
               <input id="remember" v-model="formData.remember" type="checkbox">
@@ -76,14 +71,12 @@
             </label>
           </div>
 
-          <!-- Botón de envío -->
           <button class="submit-button" :disabled="isLoading" type="submit">
             <span v-if="isLoading" class="loading-spinner"></span>
             <span v-else>Iniciar sesión</span>
           </button>
         </form>
 
-        <!-- Link a registro -->
         <div class="auth-redirect">
           <p>¿No tienes una cuenta? <router-link to="/register">Regístrate</router-link></p>
         </div>
@@ -93,14 +86,14 @@
 </template>
 
 <script setup>
-  import { ref, reactive, onMounted } from 'vue';
-  import { useRouter, useRoute } from 'vue-router';
-  import authService from '@/services/auth.service';
+  import { onMounted, reactive, ref } from 'vue';
+  import { useRoute, useRouter } from 'vue-router';
+  import { useAuth } from '@/stores/auth.js';
 
   const router = useRouter();
   const route = useRoute();
+  const { login } = useAuth();
 
-  // Estado del formulario
   const formData = reactive({
     email: '',
     password: '',
@@ -117,22 +110,18 @@
   const errorMessage = ref('');
   const registeredSuccessfully = ref(false);
 
-  // Verificar si el usuario viene de un registro exitoso
   onMounted(() => {
     if (route.query.registered === 'true') {
       registeredSuccessfully.value = true;
     }
   });
 
-  // Método para manejar el inicio de sesión
   const handleLogin = async () => {
-    // Limpiar errores previos
     errors.email = '';
     errors.password = '';
     errorMessage.value = '';
     registeredSuccessfully.value = false;
 
-    // Validación básica
     let isValid = true;
 
     if (!formData.email) {
@@ -153,33 +142,27 @@
     try {
       isLoading.value = true;
 
-      // Llamada al servicio de autenticación
-      await authService.login({
+      await login({
         email: formData.email,
         password: formData.password,
       });
 
-      // Si llegamos aquí, la autenticación fue exitosa
-      // Opcional: Guardar preferencia "recordarme"
       if (formData.remember) {
         localStorage.setItem('remember_me', 'true');
       } else {
         localStorage.removeItem('remember_me');
       }
 
-      // Redireccionar usando el parámetro redirect si existe, o al dashboard por defecto
       const redirectPath = route.query.redirect || '/dashboard';
       router.push(redirectPath);
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
-      // Mostrar mensaje de error
       errorMessage.value = error.message || 'Error al iniciar sesión. Por favor, inténtalo de nuevo.';
     } finally {
       isLoading.value = false;
     }
   };
 
-  // Función para validar el formato del email
   const isValidEmail = email => {
     const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());

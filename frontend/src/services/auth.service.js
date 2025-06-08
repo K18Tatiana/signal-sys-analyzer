@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Configura la URL base según tu entorno
-const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:8081/api';
+// Configuración api
+const API_URL = import.meta.env.VITE_API_URL
 
 // Crea una instancia personalizada de axios
 const apiClient = axios.create({

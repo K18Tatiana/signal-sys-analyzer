@@ -128,6 +128,9 @@
   const isTextareaActive = ref(false);
   const textareaElement = ref(null);
 
+  // Configuración api
+  const API_URL = import.meta.env.VITE_API_URL
+
   const errors = reactive({
     feedbackText: '',
     userEmail: '',
@@ -198,13 +201,14 @@
     isSubmitting.value = true;
 
     try {
+      console.log(API_URL);
       const feedbackData = {
         rating: rating.value,
         feedback: feedbackText.value,
         email: userEmail.value || 'No proporcionado',
       };
 
-      const response = await fetch('https://formspree.io/f/mdkgbjez', {
+      const response = await fetch(`${API_URL}/forms/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -213,15 +217,28 @@
       });
 
       if (response.ok) {
-        console.log('Feedback enviado correctamente');
         feedbackSubmitted.value = true;
       } else {
-        console.error('Error al enviar el feedback');
-        alert('Hubo un problema al enviar tu feedback. Por favor, intenta nuevamente.');
+        // Intentar obtener el mensaje de error del servidor
+        let errorMessage = 'Hubo un problema al enviar tu feedback. Por favor, intenta nuevamente.';
+
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (err) {
+          throw new Error(`Error de conexión: ${err.message}`);
+        }
+        alert(errorMessage);
       }
     } catch (error) {
-      console.error('Error al enviar el feedback:', error);
-      alert('Hubo un problema de conexión. Por favor, intenta nuevamente.');
+      // Verificar si es un error de conexión
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        alert('No se pudo conectar con el servidor. Verifica que el backend esté funcionando.');
+      } else {
+        alert('Hubo un problema de conexión. Por favor, intenta nuevamente.');
+      }
     } finally {
       isSubmitting.value = false;
     }

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -10,27 +9,27 @@ import (
 	"backend/middleware"
 	"backend/models"
 	"backend/utils"
+	"github.com/gin-gonic/gin"
 )
 
-// CreateContactFormHandler maneja la creación de un formulario de contacto
-func CreateContactFormHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func CreateContactFormHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		// Decodificar el cuerpo de la solicitud
 		var req models.ContactFormRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Error al decodificar la solicitud: "+err.Error(), http.StatusBadRequest)
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error al decodificar la solicitud: " + err.Error()})
 			return
 		}
 
 		// Validar campos requeridos
 		if req.Name == "" || req.Email == "" || req.Subject == "" || req.Message == "" {
-			http.Error(w, "Todos los campos son requeridos", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Todos los campos son requeridos"})
 			return
 		}
 
 		// Obtener ID del usuario del contexto (si está autenticado)
 		var userID *uint
-		if id, ok := middleware.GetUserID(r); ok {
+		if id, ok := middleware.GetUserIDFromGin(c); ok {
 			userID = &id
 		}
 
@@ -47,7 +46,7 @@ func CreateContactFormHandler() http.HandlerFunc {
 
 		// Guardar en la base de datos
 		if err := database.DB.Create(&contactForm).Error; err != nil {
-			http.Error(w, "Error al guardar el formulario: "+err.Error(), http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al guardar el formulario: " + err.Error()})
 			return
 		}
 
@@ -70,25 +69,22 @@ func CreateContactFormHandler() http.HandlerFunc {
 		}
 
 		// Enviar respuesta
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(response)
+		c.JSON(http.StatusCreated, response)
 	}
 }
 
-// CreateFeedbackFormHandler maneja la creación de un formulario de feedback
-func CreateFeedbackFormHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func CreateFeedbackFormHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		// Decodificar el cuerpo de la solicitud
 		var req models.FeedbackFormRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Error al decodificar la solicitud: "+err.Error(), http.StatusBadRequest)
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error al decodificar la solicitud: " + err.Error()})
 			return
 		}
 
 		// Validar campos requeridos
 		if req.Feedback == "" || req.Rating < 1 || req.Rating > 5 {
-			http.Error(w, "El feedback y un rating válido (1-5) son requeridos", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "El feedback y un rating válido (1-5) son requeridos"})
 			return
 		}
 
@@ -99,7 +95,7 @@ func CreateFeedbackFormHandler() http.HandlerFunc {
 
 		// Obtener ID del usuario del contexto (si está autenticado)
 		var userID *uint
-		if id, ok := middleware.GetUserID(r); ok {
+		if id, ok := middleware.GetUserIDFromGin(c); ok {
 			userID = &id
 		}
 
@@ -114,7 +110,7 @@ func CreateFeedbackFormHandler() http.HandlerFunc {
 
 		// Guardar en la base de datos
 		if err := database.DB.Create(&feedbackForm).Error; err != nil {
-			http.Error(w, "Error al guardar el feedback: "+err.Error(), http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al guardar el feedback: " + err.Error()})
 			return
 		}
 
@@ -137,8 +133,6 @@ func CreateFeedbackFormHandler() http.HandlerFunc {
 		}
 
 		// Enviar respuesta
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(response)
+		c.JSON(http.StatusCreated, response)
 	}
 }

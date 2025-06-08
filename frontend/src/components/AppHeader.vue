@@ -19,31 +19,44 @@
     <!-- Navegación para escritorio -->
     <nav class="desktop-nav">
       <div class="nav-links">
-        <router-link to="/">
+        <router-link to="/home">
           <i class='icon bx bx-home-alt'></i> Inicio
         </router-link>
         <router-link to="/guide">
           <i class='icon bx bx-book-open'></i> Guía / Tutorial
         </router-link>
-        <router-link to="/language">
-          <i class='icon bx bx-globe'></i> Idioma
-        </router-link>
         <ThemeToggle />
-        <button class="btn btn-secondary">
-          <router-link to="/login">
-            <i class='icon bx bx-user'></i> Iniciar sesión
-          </router-link>
-        </button>
-        <button class="btn btn-primary">
-          <router-link to="/register">
-            <i class='icon bx bx-user'></i> Registrarse
-          </router-link>
-        </button>
+
+        <template v-if="!isAuthenticated">
+          <button class="btn btn-secondary">
+            <router-link to="/login">
+              <i class='icon bx bx-user'></i> Iniciar sesión
+            </router-link>
+          </button>
+          <button class="btn btn-primary">
+            <router-link to="/register">
+              <i class='icon bx bx-user'></i> Registrarse
+            </router-link>
+          </button>
+        </template>
+
+        <template v-else>
+          <button class="btn btn-secondary btn-hidden">
+            <router-link to="/login">
+              <i class='icon bx bx-user'></i> Iniciar sesión
+            </router-link>
+          </button>
+          <button class="btn btn-primary">
+            <router-link to="/dashboard">
+              <i class='icon bx bx-user-circle'></i> Mi perfil
+            </router-link>
+          </button>
+        </template>
       </div>
     </nav>
 
-    <!-- Menú móvil -->
     <MobileMenu
+      :is-authenticated="isAuthenticated"
       :is-open="isMobileMenuOpen"
       @close="closeMobileMenu"
     />
@@ -58,16 +71,24 @@
 
 <script setup>
   import { inject, onMounted, onUnmounted, ref } from 'vue';
+  import { useAuth } from '../stores/auth.js';
   import ThemeToggle from './ThemeToggle.vue';
   import MobileMenu from './MobileMenu.vue';
 
   const isDarkMode = inject('isDarkMode');
   const isMobileMenuOpen = ref(false);
 
+  const { isAuthenticated, initialize } = useAuth();
+
+  onMounted(() => {
+    initialize();
+  });
+
   const openMobileMenu = () => {
     isMobileMenuOpen.value = true;
     document.body.classList.add('menu-open');
   };
+
   const closeMobileMenu = () => {
     isMobileMenuOpen.value = false;
     document.body.classList.remove('menu-open');
@@ -243,6 +264,12 @@
           }
         }
 
+        // Estilo para ocultar el botón de iniciar sesión cuando está logueado
+        &.btn-hidden {
+          visibility: hidden !important;
+          width: 20px !important;
+        }
+
         .icon {
           margin-right: 4px;
         }
@@ -284,5 +311,4 @@
     }
   }
 }
-
 </style>
