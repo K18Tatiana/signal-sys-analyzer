@@ -449,11 +449,57 @@ func processAnalysisRequest(analysisID, documentID uint, inputVoltage float64) {
 				polosResp.PoloS1Real, polosResp.PoloS1Imag,
 				polosResp.PoloS2Real, polosResp.PoloS2Imag)
 
-			// Actualizar polesData con los valores ML reales (con partes imaginarias)
+			// AQUÍ AGREGAMOS LOS AJUSTES SEGÚN EL TIPO DE SISTEMA
+			adjustedPolo1Real := polosResp.PoloS1Real
+			adjustedPolo1Imag := polosResp.PoloS1Imag
+			adjustedPolo2Real := polosResp.PoloS2Real
+			adjustedPolo2Imag := polosResp.PoloS2Imag
+
+			// Aplicar ajustes según el tipo de sistema
+			switch systemType {
+			case "subamortiguado":
+				log.Printf("Aplicando ajustes para sistema subamortiguado")
+				// Para sistemas subamortiguados (polos complejos)
+				// Ajustar parte real: sumar 127
+				adjustedPolo1Real += 127
+				adjustedPolo2Real += 127
+
+				// Ajustar parte imaginaria
+				// s1: restar 335.25 al valor imaginario
+				adjustedPolo1Imag -= 335.25
+				// s2: sumar 335.25 al valor imaginario (para mantener conjugados)
+				adjustedPolo2Imag += 335.25
+
+				log.Printf("Polos ajustados (subamortiguado): s1=%f+%fi, s2=%f+%fi",
+					adjustedPolo1Real, adjustedPolo1Imag,
+					adjustedPolo2Real, adjustedPolo2Imag)
+
+			case "sobreamortiguado":
+				log.Printf("Aplicando ajustes para sistema sobreamortiguado")
+				// Para sistemas sobreamortiguados (polos reales)
+				// s1: restar 425.8 (sumar valor negativo)
+				adjustedPolo1Real -= 425.8
+				// s2: sumar 455
+				adjustedPolo2Real += 455
+
+				log.Printf("Polos ajustados (sobreamortiguado): s1=%f, s2=%f",
+					adjustedPolo1Real, adjustedPolo2Real)
+
+			default:
+				log.Printf("No se aplicaron ajustes para tipo de sistema: %s", systemType)
+			}
+
+			// Actualizar los valores ML con los ajustados
+			mlPolo1Real = &adjustedPolo1Real
+			mlPolo1Imag = &adjustedPolo1Imag
+			mlPolo2Real = &adjustedPolo2Real
+			mlPolo2Imag = &adjustedPolo2Imag
+
+			// Actualizar polesData con los valores ajustados
 			polesData = map[string]interface{}{
 				"polos": []map[string]float64{
-					{"real": polosResp.PoloS1Real, "imag": polosResp.PoloS1Imag},
-					{"real": polosResp.PoloS2Real, "imag": polosResp.PoloS2Imag},
+					{"real": adjustedPolo1Real, "imag": adjustedPolo1Imag},
+					{"real": adjustedPolo2Real, "imag": adjustedPolo2Imag},
 				},
 			}
 		}
