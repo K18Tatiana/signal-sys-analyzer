@@ -49,7 +49,7 @@ Proyecto académico universitario. Yo desarrollé la mayor parte: backend, front
 Requisitos: [Docker](https://www.docker.com/) con Docker Compose. No hace falta crear archivos ni instalar PostgreSQL: el `docker-compose.yml` incluye la base de datos y las tablas se crean solas al iniciar.
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/K18Tatiana/signal-sys-analyzer.git
 cd signal-sys-analyzer
 docker compose up --build
 ```
