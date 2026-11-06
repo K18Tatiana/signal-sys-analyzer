@@ -1,21 +1,73 @@
+# Arranque con un solo comando:  docker compose up --build
+# Todas las variables tienen un valor por defecto para desarrollo local.
+# Para cambiarlas, crea un archivo .env en la raíz (ver tabla de variables del README).
+
 services:
-  api-go:
-    build: ./backend
-    env_file: ./backend/docker.env
-    ports:
-      - '8081:8081'
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-signal_sys_analysis}
+      # Solo para desarrollo local: esta base no publica ningún puerto, solo es accesible
+      # desde la red interna de Docker, así que no se guarda ninguna contraseña en el repo.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   api-ml:
     build: ./ml-api
     ports:
-      - '5001:5001'
+      - '${ML_PORT:-5001}:5001'
+    restart: unless-stopped
+
+  api-go:
+    build: ./backend
+    environment:
+      ENV: ${ENV:-development}
+      PORT: '8081'
+      DB_HOST: db
+      DB_PORT: '5432'
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ''
+      DB_NAME: ${POSTGRES_DB:-signal_sys_analysis}
+      ML_SERVICE_URL: http://api-ml:5001
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # Necesarias para subir CSV y ejecutar análisis (el backend guarda los archivos en Cloudinary).
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      # Opcionales: solo para los formularios de contacto y feedback.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+    ports:
+      - '${API_PORT:-8081}:8081'
+    depends_on:
+      db:
+        condition: service_healthy
+      api-ml:
+        condition: service_started
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - '3000:80'
+      - '${FRONTEND_PORT:-3000}:80'
     depends_on:
       - api-go
-      - api-ml
+    restart: unless-stopped
+
+volumes:
+  pgdata:

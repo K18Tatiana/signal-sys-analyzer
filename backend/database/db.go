@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -24,8 +25,11 @@ func InitDB() (*gorm.DB, error) {
 	dbname := getEnv("DB_NAME", "")
 
 	// Cadena de conexión
+	// La contraseña va entre comillas para admitir valores vacíos (p. ej. la base de Docker
+	// en desarrollo) o con espacios y caracteres especiales.
+	quotedPassword := "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(password) + "'"
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+		host, port, user, quotedPassword, dbname)
 
 	// Configurar logger de GORM
 	gormLogger := logger.New(
