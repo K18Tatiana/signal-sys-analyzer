@@ -43,5 +43,5 @@ Según `processAnalysisRequest` (`backend/handlers/analysis.go`):
 
 - Exporta la señal a CSV con dos columnas `tiempo,voltaje` (los metadatos son opcionales).
 - Usa el punto como separador decimal y la coma como separador de columnas.
-- Registra el escalón completo: desde el reposo hasta que la salida se estabiliza.
+- Registra el escalón completo: desde el reposo hasta que la salida se estabiliza. La guía de la aplicación indica al menos 5 000 datos.
 - Los modelos solo conocen circuitos RLC serie sobre y subamortiguados; consulta [ml.md](ml.md) para ver las limitaciones.
