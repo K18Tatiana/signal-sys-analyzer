@@ -2,11 +2,12 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-RUN npm ci
+# Copy sources and install dependencies. `npm ci` runs after the copy so it always
+# replaces any node_modules folder coming from the host (e.g. Windows binaries).
 COPY . .
+RUN npm ci
 
+# Same-origin API: nginx proxies /api to the backend (see nginx.conf)
 ENV VITE_API_URL=/api
 
 # Build the app

@@ -1,4 +1,6 @@
-# Archivos de entorno
+# Archivos de entorno (las plantillas *.example sí se versionan)
 .env
 .env.*
+!.env.example
 docker.env
+!docker.env.example

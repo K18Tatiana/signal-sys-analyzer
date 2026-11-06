@@ -8,6 +8,28 @@ import (
 	"gorm.io/gorm"
 )
 
+// makeUserIDNullable corrige el esquema creado por AutoMigrate: en una base vacía GORM
+// genera user_id como NOT NULL con una secuencia automática en estas tablas, pero los
+// modelos lo declaran opcional (usuarios no registrados pueden subir documentos y
+// enviar formularios). Es idempotente.
+func makeUserIDNullable(db *gorm.DB) error {
+	for _, table := range []string{"documents", "contact_forms", "feedback_forms"} {
+		stmt := fmt.Sprintf(
+			"ALTER TABLE %s ALTER COLUMN user_id DROP DEFAULT, ALTER COLUMN user_id DROP NOT NULL",
+			table,
+		)
+		if err := db.Exec(stmt).Error; err != nil {
+			return fmt.Errorf("tabla %s: %w", table, err)
+		}
+		// La secuencia ya no es usada por ninguna columna; se elimina si existe.
+		seq := fmt.Sprintf("DROP SEQUENCE IF EXISTS %s_user_id_seq", table)
+		if err := db.Exec(seq).Error; err != nil {
+			return fmt.Errorf("secuencia de %s: %w", table, err)
+		}
+	}
+	return nil
+}
+
 // MigrateDatabase configura GORM para trabajar con la base de datos
 func MigrateDatabase(db *gorm.DB) error {
 	log.Println("Configurando GORM para trabajar con el esquema de base de datos...")
@@ -32,6 +54,11 @@ func MigrateDatabase(db *gorm.DB) error {
 			&models.FeedbackForm{},
 		); err != nil {
 			log.Printf("Error al crear las tablas: %v", err)
+			return err
+		}
+
+		if err := makeUserIDNullable(db); err != nil {
+			log.Printf("Error ajustando user_id como opcional: %v", err)
 			return err
 		}
 
